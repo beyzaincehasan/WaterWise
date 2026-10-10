@@ -1,0 +1,12 @@
+# WaterWise AI modülü – çalışma zamanı bağımlılıkları (Python 3.13)
+# Backend yalnızca modeli yükleyip tahmin yapacaksa bu liste yeterlidir.
+numpy==2.5.3
+pandas==3.0.6
+scikit-learn==1.9.1
+scipy==1.18.1
+joblib==1.6.0
+pyarrow==26.0.0
+tzdata==2026.5
+# Yalnızca eğitim/EDA/test için
+matplotlib==3.11.2
+pytest==9.1.1

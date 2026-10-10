@@ -1,0 +1,29 @@
+﻿# Python environment
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.ruff_cache/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local datasets and generated outputs
+data/
+outputs/
+
+# Handoff files
+WaterWise_AI_Teslim/
+WaterWise_AI_Teslim.zip
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

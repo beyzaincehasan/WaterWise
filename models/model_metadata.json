@@ -1,0 +1,271 @@
+{
+  "model_name": "WaterWise Isolation Forest anomali modeli",
+  "model_version": "1.0.0",
+  "created_at": "2026-10-10T10:11:17.388780+00:00",
+  "algorithm": "sklearn.ensemble.IsolationForest",
+  "model_scope": "global (tüm daireler için tek model, daireye göre normalize özellikler)",
+  "analysis_unit": "daire-saat (UTC saat başı; yerel saat Europe/Stockholm özelliklerde)",
+  "hyperparameters": {
+    "bootstrap": false,
+    "contamination": "auto",
+    "max_features": 1.0,
+    "max_samples": 512,
+    "n_estimators": 300,
+    "n_jobs": -1,
+    "random_state": 42,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "feature_columns": [
+    "hour_sin",
+    "hour_cos",
+    "is_weekend",
+    "log_consumption",
+    "log_prev_hour",
+    "log_rolling_3h_sum",
+    "deviation_from_normal",
+    "deviation_from_24h",
+    "deviation_from_7d",
+    "active_slots",
+    "log_continuous_activity_min",
+    "night_log_consumption",
+    "night_active_slots"
+  ],
+  "score_definition": "anomaly_score = -score_samples(X), Liu vd. (2008) s(x)=2^(-E[h(x)]/c(n)), aralık (0,1], yüksek = daha olağandışı; olasılık değildir",
+  "thresholds": {
+    "suspicious": 0.606063906878892,
+    "anomalous": 0.6574608314880259,
+    "suspicious_quantile": 0.97,
+    "anomalous_quantile": 0.995,
+    "calibration_set": "doğrulama dönemi gerçek (etiketsiz) daire-saatleri"
+  },
+  "apartment_thresholds": {
+    "APT_001": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_002": {
+      "suspicious": 0.6556174703251019,
+      "anomalous": 0.6822449260554879,
+      "n_valid_hours": 3006,
+      "raised": true
+    },
+    "APT_003": {
+      "suspicious": 0.6493386408176819,
+      "anomalous": 0.6899736661345869,
+      "n_valid_hours": 3001,
+      "raised": true
+    },
+    "APT_004": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_005": {
+      "suspicious": 0.6331390923246436,
+      "anomalous": 0.6890413016432192,
+      "n_valid_hours": 3006,
+      "raised": true
+    },
+    "APT_006": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 2986,
+      "raised": false
+    },
+    "APT_007": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_008": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_009": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_010": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6775685004250457,
+      "n_valid_hours": 3006,
+      "raised": true
+    },
+    "APT_011": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_012": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_013": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_014": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_015": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_016": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_017": {
+      "suspicious": 0.6387444243481318,
+      "anomalous": 0.683533789870755,
+      "n_valid_hours": 3003,
+      "raised": true
+    },
+    "APT_018": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_019": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_020": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_021": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_022": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_023": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_024": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_025": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_026": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_027": {
+      "suspicious": 0.606063906878892,
+      "anomalous": 0.6574608314880259,
+      "n_valid_hours": 3006,
+      "raised": false
+    },
+    "APT_028": {
+      "suspicious": 0.6209275321300962,
+      "anomalous": 0.6629059267990065,
+      "n_valid_hours": 3006,
+      "raised": true
+    }
+  },
+  "status_rule": "Daireye özel eşik varsa o, yoksa global eşik kullanılır. score >= anomalous → Anormal; score >= suspicious → Şüpheli; aksi halde Normal",
+  "apartment_threshold_rule": "eşik_daire = max(global eşik, dairenin doğrulama skor yüzdeliği); en az 500 doğrulama saati gerekir",
+  "periods_local": {
+    "train": [
+      "2020-01-01 00:00:00+01:00",
+      "2021-11-23 00:00:00+01:00"
+    ],
+    "validation": [
+      "2022-02-17 00:00:00+01:00",
+      "2022-07-01 00:00:00+02:00"
+    ],
+    "test": [
+      "2022-07-01 00:00:00+02:00",
+      "2023-02-01 00:00:00+01:00"
+    ]
+  },
+  "n_rows": {
+    "train": 403083,
+    "valid": 84140,
+    "test": 115202
+  },
+  "n_apartments_train": 28,
+  "train_score_quantiles": {
+    "0.5": 0.43028313571244486,
+    "0.9": 0.5473492040443094,
+    "0.97": 0.6079425976895747,
+    "0.99": 0.6450313169396877,
+    "0.995": 0.6649559710980618
+  },
+  "valid_score_quantiles": {
+    "0.5": 0.4319417502380131,
+    "0.9": 0.5474759775071039,
+    "0.97": 0.606063906878892,
+    "0.99": 0.6413939752684498,
+    "0.995": 0.6574608314880259
+  },
+  "history_requirements": {
+    "history_days": 28,
+    "min_same_hour_obs": 7,
+    "min_24h_obs": 12,
+    "min_7d_obs": 72
+  },
+  "night_hours_local": [
+    0,
+    6
+  ],
+  "timezone": "Europe/Stockholm",
+  "environment": {
+    "python": "3.13.14",
+    "sklearn": "1.9.1",
+    "pandas": "3.0.6",
+    "numpy": "2.5.3"
+  },
+  "training_seconds": 7.9,
+  "files": {
+    "model": "isolation_forest.joblib",
+    "profiles": "normal_profiles.json",
+    "metadata": "model_metadata.json"
+  }
+}

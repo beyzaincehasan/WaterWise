@@ -1,0 +1,180 @@
+WATER CONSUMPTION DATASET - DATA DICTIONARY
+==============================================================================
+
+DATASET INFORMATION
+------------------------------------------------------------------------------
+Name:           HSB Living Lab Water Consumption Data (Anonymized)
+Description:    Household water consumption measurements from smart meters installed
+                in residential units. Data includes both hot and cold water 
+                consumption from various fixtures (toilets, sinks, showers, etc.).
+                This is an anonymized version suitable for public sharing.
+
+Period:         2019-12-31 to 2023-01-31
+Data Points:    652,315 consumption events
+Collection:     Real household water meters, timestamp-stamped events
+Temporal Res:   10 minutes
+
+Citation:       Knutsson, J. et al. (2026). "Household Water Consumption Patterns
+                Revealed Through High-Resolution Fixture-Level Monitoring in a
+                Swedish Living Lab." Journal of Cleaner Production. [DOI pending]
+License:        Creative Commons Attribution 4.0 International (CC BY 4.0)
+Access:         Public (anonymized)
+
+COLUMN DEFINITIONS
+------------------------------------------------------------------------------
+
+1. TEMPORAL COLUMNS
+   
+   timestamp       Type: datetime (YYYY-MM-DD HH:MM:SS)
+                   Description: UTC timestamp of consumption event, rounded to 
+                               nearest 10 minutes for privacy
+   
+   date            Type: date (YYYY-MM-DD)
+                   Description: Calendar date of event
+   
+   hour            Type: integer (0-23)
+                   Description: Hour of day (UTC)
+   
+   day_of_week     Type: integer (0-6)
+                   Description: Day of week (0=Monday, 6=Sunday)
+   
+   day_name        Type: string
+                   Description: Day name (Monday through Sunday)
+   
+   month           Type: integer (1-12)
+                   Description: Calendar month
+   
+   year            Type: integer
+                   Description: Calendar year
+
+2. LOCATION/IDENTITY COLUMNS (Anonymized)
+   
+   sensor_id       Type: string (S0001, S0002, ...)
+                   Description: Anonymized sensor identifier. Each sensor is
+                               uniquely mapped to a specific water meter location
+   
+   apartment       Type: string (APT_001, APT_002, ..., APT_028)
+                   Description: Anonymized apartment/unit identifier. 28 residential
+                               units in the study. Mapping is randomized to prevent
+                               reverse-engineering.
+   
+   cluster_name    Type: string (CL_A through CL_I)
+                   Description: Anonymized cluster identifier. Units are grouped
+                               into 9 clusters (possibly by building/section).
+                               Mapping is randomized.
+   
+   room_number     Type: string (R001, R002, ...)
+                   Description: Anonymized room identifier within the building.
+                               Each unique room has a consistent anonymous ID.
+
+3. DESCRIPTIVE COLUMNS
+   
+   room_type       Type: string
+                   Description: Categorical type of room where measurement 
+                               (Living room, Bathroom, Kitchen, Shared bathroom)
+   
+   type            Type: string
+                   Description: Water type:
+                               - 'cold water consumption' (incoming mains)
+                               - 'hot water consumption' (heated water)
+   
+   attached_to     Type: string
+                   Description: End-use fixture:
+                               - Toilet
+                               - Kitchen tap
+                               - Washbasin
+                               - Shower
+                               - Dishwasher
+                               - Washing machine
+                               - Other
+
+4. CONSUMPTION COLUMNS
+   
+   value           Type: float (liters, 3 decimal places)
+                   Description: Volume of water consumed in a single event/reading.
+                               Represents an instantaneous meter reading for a
+                               specific use event.
+   
+   aggregated_value Type: float (liters, 3 decimal places)
+                   Description: Aggregate volume associated with this event.
+                               May represent cumulative consumption for an
+                               aggregation period or session.
+
+ANONYMIZATION NOTES
+------------------------------------------------------------------------------
+
+1. REMOVED COLUMNS:
+   - ID: Database primary key (not scientifically meaningful)
+   - user_id: Always 0 but retained as PII-adjacent data
+   - aggregated_event_id: Internal system reference
+
+2. ANONYMIZATION METHODS:
+
+   a) Apartment Names (A01-A28):
+      - Mapped to APT_001 through APT_028
+      - Mapping is randomized (seed-based but shuffled)
+      - Cannot reverse-engineer original apartment numbers
+   
+   b) Cluster Names (C1-C9):
+      - Mapped to CL_A through CL_I
+      - Mapping is randomized
+      - Cannot reverse-engineer original cluster assignments
+   
+   c) Sensor IDs:
+      - Original: variable integer IDs (1041, 1060, 1541, etc.)
+      - Anonymized: S0001, S0002, S0003, ...
+      - Consistent 1-to-1 mapping: same sensor always gets same ID
+      - Allows tracking individual sensor patterns while preventing
+        identification through sensor documentation
+   
+   d) Room Numbers:
+      - Original: variable integer IDs (2104, 2106, 3107, etc.)
+      - Anonymized: R001, R002, R003, ...
+      - Consistent 1-to-1 mapping for spatial analysis
+   
+   e) Timestamp Rounding:
+      - Rounded to nearest 10 minutes
+      - Provides privacy protection against activity timing inference
+      - Maintains sufficient temporal resolution for water use analysis
+
+3. PRIVACY CONSIDERATIONS:
+   - No direct personal identifiers (names, addresses, IDs)
+   - Apartment/cluster mapping is randomized
+   - Sensor-level patterns should not be reverse-mappable to buildings
+   - Temporal patterns may still enable some inference if users are known
+   - Recommend data sharing under CC BY 4.0 with appropriate data governance
+
+4. DATA QUALITY:
+   - Missing values in apartment/cluster fields preserved as NaN
+     (likely shared facilities with no specific apartment assignment)
+   - Timestamps already validated in cleaning process
+   - All required fields present in output
+
+DATA USAGE RECOMMENDATIONS
+------------------------------------------------------------------------------
+
+1. APPROPRIATE USES:
+   - Water consumption pattern analysis
+   - Fixture-level efficiency studies
+   - Time-series behavior modeling
+   - Seasonal and temporal trend analysis
+   - Building-level or cluster-level aggregate statistics
+   - Algorithm development for anomaly detection, forecasting
+
+2. ATTRIBUTION:
+   When using this data, cite as:
+   "Knutsson, J. et al. (2026). 'HSB Living Lab Water Consumption Data'.
+    Journal of Cleaner Production / [Repository]. Available at: [URL/DOI].
+    Licensed under CC BY 4.0."
+
+3. GOVERNANCE:
+   - Users should review data governance guidelines
+   - Respect CC BY 4.0 license terms
+   - Provide attribution in publications/products
+   - Avoid attempts to de-anonymize data
+   - Report any privacy concerns to [contact email]
+
+==============================================================================
+Version: 1.1
+Generated: 2026-03-11
+Updated:   Date range corrected; citation placeholder filled
