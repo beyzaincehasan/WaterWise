@@ -1,0 +1,1369 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "WaterWise Su Tüketim Analizi ve Anomali Tespit API",
+    "description": "\n# WaterWise 💧 Su Tüketim Analizi ve Anomali Tespit API\n\nEvsel su tüketiminin analiz edilmesini, geçmiş kullanım örüntülerinin öğrenilmesini ve\n**Isolation Forest** makine öğrenmesi algoritmasıyla olağandışı tüketim davranışlarının\n(gece sürekli akışı, açık kalan musluk, olası su kaçağı vb.) tespit edilmesini sağlar.\n\n## Temel Modüller\n- **Sistem & Sağlık (`/health`)**: API ve modelin operasyonel durumu.\n- **Daireler (`/api/v1/apartments`)**: Daire listesi ve profil normal tüketim aralıkları.\n- **Tüketim Analizi (`/api/v1/apartments/{id}/...`)**: Günlük tüketim serisi, armatür kırılımı ve özet istatistikler.\n- **Anomali Tespiti (`/api/v1/anomalies`)**: 28 günlük geçmişi değerlendirerek tahmin yürütme ve kayıtlı uyarıları listeleme.\n- **Demo Kaçak Simülatörü (`/api/v1/anomalies/simulate-demo`)**: Sunum ve test için yapay kaçak senaryosu.\n\n> **Önemli Not:** Modelin ürettiği `anomaly_score` skoru (0, 1] aralığında göreli bir göstergedir; kesinlikle bir olasılık (% kaçak olasılığı) olarak yorumlanmamalıdır.\n    ",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Sistem & Sağlık"
+        ],
+        "summary": "API ve Yapay Zekâ Modeli Sağlık Kontrolü",
+        "description": "Sistemin, veritabanı bağlantısının ve eğitilmiş Isolation Forest modelinin hazır olup olmadığını denetler.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apartments": {
+      "get": {
+        "tags": [
+          "Daireler"
+        ],
+        "summary": "Kayıtlı Daire Listesi",
+        "description": "Sistemdeki 28 dairenin listesini, küme bilgilerini ve normal tüketim aralıklarını döndürür.",
+        "operationId": "list_apartments_api_v1_apartments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApartmentListItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Apartments Api V1 Apartments Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apartments/{apartment_id}": {
+      "get": {
+        "tags": [
+          "Daireler"
+        ],
+        "summary": "Tek Daire Bilgisi",
+        "description": "Belirtilen dairenin profilini ve temel bilgilerini getirir.",
+        "operationId": "get_apartment_api_v1_apartments__apartment_id__get",
+        "parameters": [
+          {
+            "name": "apartment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Daire kimliği (ör. APT_011)",
+              "title": "Apartment Id"
+            },
+            "description": "Daire kimliği (ör. APT_011)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApartmentListItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apartments/{apartment_id}/daily-consumption": {
+      "get": {
+        "tags": [
+          "Tüketim Analizi"
+        ],
+        "summary": "Günlük Tüketim Serisi",
+        "description": "Dairenin belirtilen tarih aralığındaki günlük toplam, sıcak su ve soğuk su tüketim serisini (Litre) listeler.",
+        "operationId": "daily_consumption_api_v1_apartments__apartment_id__daily_consumption_get",
+        "parameters": [
+          {
+            "name": "apartment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Daire kimliği (ör. APT_011)",
+              "title": "Apartment Id"
+            },
+            "description": "Daire kimliği (ör. APT_011)"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Başlangıç tarihi (YYYY-MM-DD)",
+              "title": "Start Date"
+            },
+            "description": "Başlangıç tarihi (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bitiş tarihi (YYYY-MM-DD)",
+              "title": "End Date"
+            },
+            "description": "Bitiş tarihi (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DailyConsumptionItem"
+                  },
+                  "title": "Response Daily Consumption Api V1 Apartments  Apartment Id  Daily Consumption Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apartments/{apartment_id}/fixture-breakdown": {
+      "get": {
+        "tags": [
+          "Tüketim Analizi"
+        ],
+        "summary": "Armatür / Kullanım Türü Kırılımı",
+        "description": "Dairenin su tüketimini armatür bazında (Duş, Musluk, Tuvalet, Makine, Diğer) hacim ve yüzde olarak dağıtır.",
+        "operationId": "fixture_breakdown_api_v1_apartments__apartment_id__fixture_breakdown_get",
+        "parameters": [
+          {
+            "name": "apartment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Daire kimliği (ör. APT_011)",
+              "title": "Apartment Id"
+            },
+            "description": "Daire kimliği (ör. APT_011)"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtre başlangıç tarihi (YYYY-MM-DD)",
+              "title": "Start Date"
+            },
+            "description": "Filtre başlangıç tarihi (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtre bitiş tarihi (YYYY-MM-DD)",
+              "title": "End Date"
+            },
+            "description": "Filtre bitiş tarihi (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FixtureBreakdownItem"
+                  },
+                  "title": "Response Fixture Breakdown Api V1 Apartments  Apartment Id  Fixture Breakdown Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apartments/{apartment_id}/stats": {
+      "get": {
+        "tags": [
+          "Tüketim Analizi"
+        ],
+        "summary": "Özet Tüketim İstatistikleri",
+        "description": "Dairenin toplam tüketimi, günlük ortalaması, pik saatlik tüketimi, gece oranı ve normal profil aralığını sunar.",
+        "operationId": "apartment_stats_api_v1_apartments__apartment_id__stats_get",
+        "parameters": [
+          {
+            "name": "apartment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Daire kimliği (ör. APT_011)",
+              "title": "Apartment Id"
+            },
+            "description": "Daire kimliği (ör. APT_011)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApartmentStatsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apartments/{apartment_id}/evaluate-range": {
+      "get": {
+        "tags": [
+          "Tüketim Analizi"
+        ],
+        "summary": "Zaman Aralığı Saatlik Anomali Değerlendirmesi",
+        "description": "Dashboard için [start_time, end_time] aralığındaki her saat için anomali skoru, tüketim ve durum listesi döndürür.",
+        "operationId": "evaluate_range_api_v1_apartments__apartment_id__evaluate_range_get",
+        "parameters": [
+          {
+            "name": "apartment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Daire kimliği (ör. APT_011)",
+              "title": "Apartment Id"
+            },
+            "description": "Daire kimliği (ör. APT_011)"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Başlangıç zamanı (ISO 8601 UTC veya yerel)",
+              "title": "Start Time"
+            },
+            "description": "Başlangıç zamanı (ISO 8601 UTC veya yerel)"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Bitiş zamanı (ISO 8601 UTC veya yerel)",
+              "title": "End Time"
+            },
+            "description": "Bitiş zamanı (ISO 8601 UTC veya yerel)"
+          },
+          {
+            "name": "history_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Geçmiş bağlam gün sayısı (varsayılan 28)",
+              "default": 28,
+              "title": "History Days"
+            },
+            "description": "Geçmiş bağlam gün sayısı (varsayılan 28)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AnomalyPredictionResponse"
+                  },
+                  "title": "Response Evaluate Range Api V1 Apartments  Apartment Id  Evaluate Range Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/anomalies/detect": {
+      "post": {
+        "tags": [
+          "Anomali Tespiti"
+        ],
+        "summary": "Anomali Tespiti Çalıştır",
+        "description": "Eğitilmiş Isolation Forest modelini kullanarak, belirtilen daire ve saat için tüketim anomalisi tespiti yapar. 28 günlük geçmiş bağlamı veritabanından otomatik çeker.",
+        "operationId": "detect_anomaly_api_v1_anomalies_detect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnomalyDetectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnomalyPredictionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/anomalies": {
+      "get": {
+        "tags": [
+          "Anomali Tespiti"
+        ],
+        "summary": "Kayıtlı Anomalileri Listele",
+        "description": "Veritabanına kaydedilmiş anomali ve uyarı kayıtlarını filtreleyerek listeler.",
+        "operationId": "list_anomaly_logs_api_v1_anomalies_get",
+        "parameters": [
+          {
+            "name": "apartment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Daire filtresi (ör. APT_011)",
+              "title": "Apartment Id"
+            },
+            "description": "Daire filtresi (ör. APT_011)"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Durum filtresi ('Anormal', 'Şüpheli')",
+              "title": "Status"
+            },
+            "description": "Durum filtresi ('Anormal', 'Şüpheli')"
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Başlangıç tarihi (YYYY-MM-DD)",
+              "title": "Start Date"
+            },
+            "description": "Başlangıç tarihi (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bitiş tarihi (YYYY-MM-DD)",
+              "title": "End Date"
+            },
+            "description": "Bitiş tarihi (YYYY-MM-DD)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Sayfa başına kayıt sayısı",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Sayfa başına kayıt sayısı"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Kayıt başlangıç ofseti",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Kayıt başlangıç ofseti"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AnomalyLogItem"
+                  },
+                  "title": "Response List Anomaly Logs Api V1 Anomalies Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/anomalies/simulate-demo": {
+      "post": {
+        "tags": [
+          "Anomali Tespiti"
+        ],
+        "summary": "Demo Kaçak Senaryosu Simülasyonu",
+        "description": "Sunum ve arayüz testi için seçilen gece saatine sürekli akış (18 L/saat) enjekte ederek Normal -> Anormal durum geçişini canlı simüle eder.",
+        "operationId": "simulate_demo_api_v1_anomalies_simulate_demo_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoSimulateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoSimulateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnomalyDetectRequest": {
+        "properties": {
+          "apartment_id": {
+            "type": "string",
+            "title": "Apartment Id",
+            "description": "Tahmin yapılacak daire (ör. APT_011)"
+          },
+          "target_timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Timestamp",
+            "description": "Değerlendirilecek saat (ISO formatı UTC veya yerel saat). Verilmezse son kayıt saati alınır."
+          },
+          "history_days": {
+            "type": "integer",
+            "title": "History Days",
+            "description": "Geriye dönük incelenecek gün sayısı (önerilen 28)",
+            "default": 28
+          },
+          "save_log": {
+            "type": "boolean",
+            "title": "Save Log",
+            "description": "Sonuç 'Anormal' veya 'Şüpheli' ise anomali log tablosuna kaydedilsin mi?",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "apartment_id"
+        ],
+        "title": "AnomalyDetectRequest"
+      },
+      "AnomalyHistoryInfo": {
+        "properties": {
+          "sufficient": {
+            "type": "boolean",
+            "title": "Sufficient",
+            "description": "Geçmiş veri miktarı yeterli mi?"
+          },
+          "profile_fallback_used": {
+            "type": "boolean",
+            "title": "Profile Fallback Used",
+            "description": "Eksik geçmiş nedeniyle eğitim profili yedek olarak kullanıldı mı?"
+          },
+          "apartment_profile_available": {
+            "type": "boolean",
+            "title": "Apartment Profile Available",
+            "description": "Daireye özel profil var mı?"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sufficient",
+          "profile_fallback_used",
+          "apartment_profile_available"
+        ],
+        "title": "AnomalyHistoryInfo"
+      },
+      "AnomalyLogItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "apartment_id": {
+            "type": "string",
+            "title": "Apartment Id"
+          },
+          "timestamp_utc": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp Utc"
+          },
+          "timestamp_local": {
+            "type": "string",
+            "title": "Timestamp Local"
+          },
+          "consumption_liters": {
+            "type": "number",
+            "title": "Consumption Liters"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "anomaly_score": {
+            "type": "number",
+            "title": "Anomaly Score",
+            "description": "Isolation Forest anomali skoru (0, 1]. Yüksek skor = daha olağandışı. Olasılık değildir."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "reasons": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "apartment_id",
+          "timestamp_utc",
+          "timestamp_local",
+          "consumption_liters",
+          "status",
+          "anomaly_score",
+          "message",
+          "created_at",
+          "is_demo"
+        ],
+        "title": "AnomalyLogItem"
+      },
+      "AnomalyPredictionResponse": {
+        "properties": {
+          "apartment_id": {
+            "type": "string",
+            "title": "Apartment Id",
+            "description": "Değerlendirilen daire kimliği"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Değerlendirilen saatin başlangıcı (UTC, ISO-8601 'Z')"
+          },
+          "timestamp_local": {
+            "type": "string",
+            "title": "Timestamp Local",
+            "description": "Değerlendirilen anın yerel saati (Europe/Stockholm)"
+          },
+          "period_minutes": {
+            "type": "integer",
+            "title": "Period Minutes",
+            "description": "Analiz periyodu (saatlik analiz için her zaman 60)",
+            "default": 60
+          },
+          "consumption_liters": {
+            "type": "number",
+            "title": "Consumption Liters",
+            "description": "O saatteki toplam tüketim (L)"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Anomali durumu ('Normal', 'Şüpheli', 'Anormal')"
+          },
+          "anomaly_score": {
+            "type": "number",
+            "title": "Anomaly Score",
+            "description": "Isolation Forest anomali skoru (0, 1]. Yüksek skor = daha olağandışı kullanım. ÖNEMLİ: Bu değer kesinlikle bir olasılık (% kaçak olasılığı) DEĞİLDİR."
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/ThresholdsSchema",
+            "description": "Uygulanan eşik değerleri"
+          },
+          "normal_consumption_liters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normal Consumption Liters",
+            "description": "Bu saat için profil ortalama tüketimi (L)"
+          },
+          "normal_upper_liters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normal Upper Liters",
+            "description": "Bu saat için profil p95 üst sınırı (L)"
+          },
+          "historical_same_hour_mean_liters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Historical Same Hour Mean Liters",
+            "description": "Dairenin son 28 gündeki aynı saat ortalaması (L)"
+          },
+          "rolling_24h_mean_liters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolling 24H Mean Liters",
+            "description": "Önceki 24 saat ortalaması (L)"
+          },
+          "rolling_7d_mean_liters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolling 7D Mean Liters",
+            "description": "Önceki 7 gün ortalaması (L)"
+          },
+          "active_10min_intervals": {
+            "type": "integer",
+            "title": "Active 10Min Intervals",
+            "description": "Saatteki tüketimli 10 dk dilim sayısı (0-6)"
+          },
+          "continuous_activity_minutes": {
+            "type": "integer",
+            "title": "Continuous Activity Minutes",
+            "description": "Art arda tüketimli dilim süresi (dk, bir süreklilik göstergesidir)"
+          },
+          "is_night": {
+            "type": "boolean",
+            "title": "Is Night",
+            "description": "Gece saati mi? (Yerel 00:00-06:00)"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/AnomalyReason"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "description": "Anomali gerekçeleri (Normal ise boş)"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Kullanıcıya gösterilecek Türkçe durum/uyarı mesajı"
+          },
+          "history": {
+            "$ref": "#/components/schemas/AnomalyHistoryInfo",
+            "description": "Geçmiş bağlam durumu"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Uyarı kodları ve açıklamaları"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer",
+            "description": "Teşhis olmadığına dair sabit yasal bilgilendirme"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "description": "Model sürümü"
+          }
+        },
+        "type": "object",
+        "required": [
+          "apartment_id",
+          "timestamp",
+          "timestamp_local",
+          "consumption_liters",
+          "status",
+          "anomaly_score",
+          "thresholds",
+          "active_10min_intervals",
+          "continuous_activity_minutes",
+          "is_night",
+          "message",
+          "history",
+          "disclaimer",
+          "model_version"
+        ],
+        "title": "AnomalyPredictionResponse"
+      },
+      "AnomalyReason": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Gerekçe kodu (NIGHT_CONTINUOUS_FLOW, HIGH_CONSUMPTION vb.)"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Kullanıcıya yönelik açıklayıcı Türkçe gerekçe metni"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "AnomalyReason"
+      },
+      "ApartmentListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Daire kimliği (ör. APT_001)"
+          },
+          "cluster_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Name",
+            "description": "Bağlı olduğu bina kümesi (CL_A..CL_I)"
+          },
+          "has_profile": {
+            "type": "boolean",
+            "title": "Has Profile",
+            "description": "Eğitilmiş normal profili var mı?",
+            "default": true
+          },
+          "normal_daily_mean_liters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normal Daily Mean Liters",
+            "description": "Profildeki günlük ortalama tüketim (L)"
+          },
+          "normal_range_liters": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normal Range Liters",
+            "description": "Günlük normal tüketim aralığı [p05, p95]"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ApartmentListItem"
+      },
+      "ApartmentStatsResponse": {
+        "properties": {
+          "apartment_id": {
+            "type": "string",
+            "title": "Apartment Id",
+            "description": "Daire kimliği"
+          },
+          "total_consumption_liters": {
+            "type": "number",
+            "title": "Total Consumption Liters",
+            "description": "Tüm kayıtlı dönemdeki toplam tüketim (L)"
+          },
+          "daily_mean_liters": {
+            "type": "number",
+            "title": "Daily Mean Liters",
+            "description": "Kayıtlı günlerin ortalama günlük tüketimi (L)"
+          },
+          "max_hourly_liters": {
+            "type": "number",
+            "title": "Max Hourly Liters",
+            "description": "Gözlemlenen en yüksek saatlik tüketim (L)"
+          },
+          "night_consumption_ratio": {
+            "type": "number",
+            "title": "Night Consumption Ratio",
+            "description": "Gece (00:00-06:00) saatlerindeki tüketimin toplam tüketime oranı (%)"
+          },
+          "normal_daily_mean_liters": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normal Daily Mean Liters",
+            "description": "Eğitim profilindeki günlük ortalama (L)"
+          },
+          "normal_range_liters": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normal Range Liters",
+            "description": "Profildeki normal aralık [p05, p95] (L)"
+          },
+          "first_recorded_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Recorded Date",
+            "description": "İlk kayıt tarihi"
+          },
+          "last_recorded_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Recorded Date",
+            "description": "Son kayıt tarihi"
+          }
+        },
+        "type": "object",
+        "required": [
+          "apartment_id",
+          "total_consumption_liters",
+          "daily_mean_liters",
+          "max_hourly_liters",
+          "night_consumption_ratio"
+        ],
+        "title": "ApartmentStatsResponse"
+      },
+      "DailyConsumptionItem": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date",
+            "description": "Tarih (YYYY-MM-DD)"
+          },
+          "total_liters": {
+            "type": "number",
+            "title": "Total Liters",
+            "description": "Günlük toplam tüketim (Litre)"
+          },
+          "cold_water_liters": {
+            "type": "number",
+            "title": "Cold Water Liters",
+            "description": "Soğuk su tüketimi (Litre)"
+          },
+          "hot_water_liters": {
+            "type": "number",
+            "title": "Hot Water Liters",
+            "description": "Sıcak su tüketimi (Litre)"
+          },
+          "record_count": {
+            "type": "integer",
+            "title": "Record Count",
+            "description": "Güne ait sensör okuma adedi"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "total_liters",
+          "cold_water_liters",
+          "hot_water_liters",
+          "record_count"
+        ],
+        "title": "DailyConsumptionItem"
+      },
+      "DemoSimulateRequest": {
+        "properties": {
+          "apartment_id": {
+            "type": "string",
+            "title": "Apartment Id",
+            "description": "Demo kaçak uygulanacak daire",
+            "default": "APT_011"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time",
+            "description": "Kaçağın başlayacağı yerel saat (ör. '2022-11-24 01:00'). Boş bırakılırsa uygun bir gece saati seçilir."
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours",
+            "description": "Kaçak süresi (saat)",
+            "default": 3.0
+          },
+          "rate_l_per_hour": {
+            "type": "number",
+            "title": "Rate L Per Hour",
+            "description": "Kaçak debisi (Litre/saat, varsayılan 18 L/saat)",
+            "default": 18.0
+          }
+        },
+        "type": "object",
+        "title": "DemoSimulateRequest"
+      },
+      "DemoSimulateResponse": {
+        "properties": {
+          "apartment_id": {
+            "type": "string",
+            "title": "Apartment Id"
+          },
+          "simulated_hours": {
+            "type": "number",
+            "title": "Simulated Hours"
+          },
+          "rate_l_per_hour": {
+            "type": "number",
+            "title": "Rate L Per Hour"
+          },
+          "start_time_local": {
+            "type": "string",
+            "title": "Start Time Local"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/AnomalyPredictionResponse"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "apartment_id",
+          "simulated_hours",
+          "rate_l_per_hour",
+          "start_time_local",
+          "results",
+          "summary"
+        ],
+        "title": "DemoSimulateResponse"
+      },
+      "FixtureBreakdownItem": {
+        "properties": {
+          "fixture": {
+            "type": "string",
+            "title": "Fixture",
+            "description": "Armatür/kullanım kategorisi (Duş, Musluk, Tuvalet, Makine, Diğer)"
+          },
+          "total_liters": {
+            "type": "number",
+            "title": "Total Liters",
+            "description": "Toplam tüketim (Litre)"
+          },
+          "percentage": {
+            "type": "number",
+            "title": "Percentage",
+            "description": "Dairenin toplam tüketimi içindeki yüzdesi (%0-100)"
+          },
+          "record_count": {
+            "type": "integer",
+            "title": "Record Count",
+            "description": "İlgili armatüre ait okuma sayısı"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fixture",
+          "total_liters",
+          "percentage",
+          "record_count"
+        ],
+        "title": "FixtureBreakdownItem"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "API çalışma durumu (healthy/ok)"
+          },
+          "app_name": {
+            "type": "string",
+            "title": "App Name",
+            "description": "Uygulama adı"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Backend sürümü"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "description": "Yapay zekâ modeli sürümü"
+          },
+          "known_apartments_count": {
+            "type": "integer",
+            "title": "Known Apartments Count",
+            "description": "Normal profili olan kayıtlı daire sayısı"
+          },
+          "database_status": {
+            "type": "string",
+            "title": "Database Status",
+            "description": "Veritabanı bağlantı durumu"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "app_name",
+          "version",
+          "model_version",
+          "known_apartments_count",
+          "database_status"
+        ],
+        "title": "HealthResponse"
+      },
+      "ThresholdsSchema": {
+        "properties": {
+          "suspicious": {
+            "type": "number",
+            "title": "Suspicious",
+            "description": "Şüpheli durum eşiği"
+          },
+          "anomalous": {
+            "type": "number",
+            "title": "Anomalous",
+            "description": "Anormal durum eşiği"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "description": "Eşik kapsamı ('apartment' veya 'global')"
+          }
+        },
+        "type": "object",
+        "required": [
+          "suspicious",
+          "anomalous",
+          "scope"
+        ],
+        "title": "ThresholdsSchema"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
